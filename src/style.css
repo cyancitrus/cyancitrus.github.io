@@ -107,3 +107,4 @@ body{margin:0;min-height:100vh}
 .gutter-mirror{display:block;flex:none;width:var(--mirror-width,500px);white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal;visibility:hidden;text-align:left}
 .editor-input-wrap .editor-textarea{white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal}
 @media(max-width:600px){.gutter-number{width:40px;padding-right:7px}}
+.remember-control{display:flex;align-items:center;gap:9px;flex-wrap:wrap;color:var(--foreground);font-size:14px;font-weight:600}.remember-control input{width:16px;height:16px;accent-color:var(--brand)}.remember-control span{flex-basis:100%;padding-left:25px;color:var(--subtle);font-size:12px;font-weight:400}.manage-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
