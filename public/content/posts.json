@@ -1,5 +1,14 @@
 [
   {
+    "id": "7bbb0351-e7da-4a1b-892f-a4bbc0589ba2",
+    "title": "CF1174D Ehab and the Expected XOR Problem",
+    "category": "题解",
+    "body": "这期神了。瞎胡了一个看起来正确性和复杂度都不对的做法结果通过了全部数据，一脸懵地来补充证明。\n```cpp\nint sum = 0;\nwhile(1){\n    ban[sum] = 1;\n    ban[sum ^ x] = 1;\n    int fg = 0;\n    for(int j = 1; j < (1 << n); j++){\n        if(fg) break;\n        if(!ban[j ^ sum]) ans[++l] = j, sum ^= j, fg = 1;\n    }\n    if(!fg) break;\n} \n```\n\n正确性：  \n对于每一个形如 $\\{pre,\\ pre\\oplus x\\} $ 的前缀数对，最终的前缀数列里只能选取两者之一。每次循环可以找到一个 $\\{pre,\\ pre \\oplus x\\}$ 都不在前缀序列中的数对，将其中一个加入。这样每次会新标记一个数对，正确性是显然的。  \n\n复杂度：  \n把 $[1,2^n)$ 按照二进制下最高位分成上下两个半区。  \n设 $T(n)$ 为 $n$ 位情况下的最大运行时间。  \n下半区若仍有可选值 $t$，则 $j= sum \\oplus t < 2^{n-1}$，所以按 $j$ 递增枚举时，必先将下半区全部禁止。  \n- 若 $x < 2^{n-1}$ 或 $x\\ge 2^n$，两个半区互不影响，各自等价于一个 $n-1$ 位问题；跨半区和最后扫描的代价为 $\\mathcal{O}(2^n)$。  \n- 若 $2^{n-1} \\le x<2^n$，禁止下半区时顺手禁止了上半区，所以在下半区全部禁止后算法直接结束，因此：\n$$\nT(n) = 2T(n-1) + \\mathcal{O}(2^n).\n$$\n展开递推，每层代价为 $\\mathcal{O}(2^n)$，共 $n$ 层，总复杂度为 $\\mathcal{O}(n2^n)$。\n",
+    "pinned": false,
+    "publishedAt": "2026-10-02T16:05:15.798Z",
+    "updatedAt": "2026-10-02T16:05:15.798Z"
+  },
+  {
     "id": "72e47279-d2aa-4b92-bd9f-530b8bedb9b7",
     "title": "CF1942D Learning to Paint",
     "category": "题解",
