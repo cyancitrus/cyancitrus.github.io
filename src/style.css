@@ -108,3 +108,20 @@ body{margin:0;min-height:100vh}
 .editor-input-wrap .editor-textarea{white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal}
 @media(max-width:600px){.gutter-number{width:40px;padding-right:7px}}
 .remember-control{display:flex;align-items:center;gap:9px;flex-wrap:wrap;color:var(--foreground);font-size:14px;font-weight:600}.remember-control input{width:16px;height:16px;accent-color:var(--brand)}.remember-control span{flex-basis:100%;padding-left:25px;color:var(--subtle);font-size:12px;font-weight:400}.manage-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.demo-banner{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:13px max(20px,calc((100% - 1240px)/2));background:#e8f8f6;border-bottom:1px solid #b9e6e1;color:#245e59;font-size:13px;line-height:1.5}.demo-banner strong{font-size:15px;white-space:nowrap}
+/* Number labels are measured from the native textarea's wrapped lines. */
+.editor-gutter{position:relative;padding:0;white-space:normal;text-align:initial}
+.gutter-numbers{position:relative;width:100%}
+.gutter-number-absolute{position:absolute;right:10px;white-space:nowrap;line-height:1.75}
+.demo-banner button{border:1px solid #39c5bb;background:#fff;color:#16776e;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700}
+.editor-cm{flex:1;min-width:0;min-height:0;overflow:hidden}
+.editor-cm .cm-editor{height:100%;background:var(--paper);color:var(--foreground);font:14px/1.75 var(--font-mono)}
+.editor-cm .cm-focused{outline:0}
+.editor-cm .cm-scroller{height:100%;overflow:auto;font:inherit}
+.editor-cm .cm-content{padding:18px 16px var(--writing-space,250px);min-height:100%;caret-color:var(--foreground)}
+.editor-cm .cm-line{padding:0 1px;overflow-wrap:anywhere}
+.editor-cm .cm-gutters{background:var(--soft);color:var(--subtle);border-right:1px solid var(--line);min-width:44px}
+.editor-cm .cm-lineNumbers .cm-gutterElement{padding:0 10px 0 6px;min-width:42px}
+.editor-cm .cm-activeLine,.editor-cm .cm-activeLineGutter{background:transparent}
+.editor-cm .cm-selectionBackground{background:#39c5bb55!important}
+.editor-cm .cm-cursor{border-left-color:var(--foreground)}

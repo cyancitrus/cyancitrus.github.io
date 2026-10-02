@@ -94,14 +94,15 @@ function escapeHtml(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-export function Markdown({ content }: { content: string }) {
+export function Markdown({ content, bare = false }: { content: string; bare?: boolean }) {
   const normalized = content.replace(/^\s*\$\$([^\n]+)\$\$\s*$/gm, (_, math: string) => `$$\n${math}\n$$`);
-  return <div className="markdown-body"><ReactMarkdown
+  const rendered = <ReactMarkdown
     remarkPlugins={[remarkGfm, remarkMath, remarkDirective, luoguDirectives]}
     rehypePlugins={[tableMerges, [rehypeKatex, { strict: false, trust: false }]]}
     components={{
       pre: ({ node, children }) => <CodeBlock node={node as never}>{children}</CodeBlock>,
       a: ({ href, children }) => <a href={href} target={href?.startsWith("http") ? "_blank" : undefined} rel={href?.startsWith("http") ? "noopener noreferrer" : undefined}>{children}</a>,
     }}
-  >{normalized}</ReactMarkdown></div>;
+  >{normalized}</ReactMarkdown>;
+  return bare ? <>{rendered}</> : <div className="markdown-body">{rendered}</div>;
 }

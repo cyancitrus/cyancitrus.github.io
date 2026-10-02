@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Dispatch, SetStateAction } from "react";
 import { createPortal } from "react-dom";
 import { AlignLeft, Bold, Box, ChevronDown, Code2, Download, FileCode2, FileInput, Heading, Image, Italic, Link2, List, ListChecks, ListOrdered, Maximize2, Minimize2, Minus, PanelLeft, PanelRight, Quote, Redo2, Strikethrough, Table2, Undo2, Columns2 } from "lucide-react";
 
@@ -41,10 +40,12 @@ function ToolbarMenu({ label, icon, items }: { label: string; icon: React.ReactN
   </>;
 }
 
-export function useMarkdownHistory(body: string, setBody: Dispatch<SetStateAction<string>>, onDirty: () => void) {
+export function useMarkdownHistory(initialBody: string, applyBody: (next: string, typing: boolean) => void, onDirty: () => void) {
+  const current = useRef(initialBody);
   const history = useRef({ past: [] as string[], future: [] as string[], lastInput: 0, typing: false });
   const [available, setAvailable] = useState({ undo: false, redo: false });
   const update = (next: string, typing = false) => {
+    const body = current.current;
     if (next === body) return;
     const h = history.current;
     const now = Date.now();
@@ -55,24 +56,27 @@ export function useMarkdownHistory(body: string, setBody: Dispatch<SetStateActio
     h.future = [];
     h.lastInput = now;
     h.typing = typing;
-    setBody(next);
+    current.current = next;
+    applyBody(next, typing);
     onDirty();
-    setAvailable({ undo: h.past.length > 0, redo: false });
+    setAvailable(current => current.undo === (h.past.length > 0) && !current.redo ? current : { undo: h.past.length > 0, redo: false });
   };
   const undo = () => {
     const h = history.current;
     const previous = h.past.pop();
     if (previous === undefined) return;
-    h.future.push(body); h.typing = false;
-    setBody(previous); onDirty();
+    h.future.push(current.current); h.typing = false;
+    current.current = previous;
+    applyBody(previous, false); onDirty();
     setAvailable({ undo: h.past.length > 0, redo: true });
   };
   const redo = () => {
     const h = history.current;
     const next = h.future.pop();
     if (next === undefined) return;
-    h.past.push(body); h.typing = false;
-    setBody(next); onDirty();
+    h.past.push(current.current); h.typing = false;
+    current.current = next;
+    applyBody(next, false); onDirty();
     setAvailable({ undo: true, redo: h.future.length > 0 });
   };
   return { update, undo, redo, canUndo: available.undo, canRedo: available.redo };
