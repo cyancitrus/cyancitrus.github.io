@@ -1,5 +1,14 @@
 [
   {
+    "id": "fb1e7d3c-61e9-4219-897c-0a559f99dc7d",
+    "title": "网络流学习笔记",
+    "category": "做题记录",
+    "body": "# 网络流学习笔记\n## 最大流最小割\n结论：图的最大流的流量就是最小割。  \n证明不会。  \n::::success[dinic]\n```cpp\n#include <bits/stdc++.h>\n#define eb emplace_back\n#define int long long\nusing namespace std;\nconst int N = 210;\nstruct Node{\n\tint to;\n\tint val;\n\tint rev;\n};\nvector<Node> e[N];\nint n, m, s, t, ans, dep[N], cur[N];\nbool bfs(){\n\tqueue<int> q;\n\tq.push(s);\n\tmemset(dep, -1, sizeof dep);\n\tdep[s] = 0;\n\twhile(!q.empty()){\n\t\tint u = q.front();\n\t\tq.pop();\n\t\tfor(auto v : e[u]){\n\t\t\tif(dep[v.to] == -1 && v.val){\n\t\t\t\tdep[v.to] = dep[u] + 1;\n\t\t\t\tq.push(v.to);\t\t\t\t\n\t\t\t}\n\t\t}\n\t}\n\tmemset(cur, 0, sizeof cur);\n\treturn (dep[t] != -1);\n}\nint dfs(int u, int flow){\n\tif(u == t) return flow;\n\tint res = 0;\n\tfor(int i = cur[u]; i < e[u].size(); i++){\n\t\tNode v = e[u][i];\n\t\tcur[u] = i;\n\t\tif(dep[v.to] == dep[u] + 1 && v.val){\n\t\t\tint tmp = 0;\n\t\t\ttmp = dfs(v.to, min(flow - res, v.val));\n\t\t\tif(tmp){\n\t\t\t\te[u][i].val -= tmp;\n\t\t\t\te[v.to][v.rev].val += tmp;\n\t\t\t\tres += tmp;\n\t\t\t\tif(res == flow) break;\t\t\n\t\t\t}else dep[v.to] = -1;\n\t\t}\n\t}\n\treturn res;\n}\nvoid dinic(){\n\twhile(bfs()){ans += dfs(s, 1e18);}\n}\nsigned main(){\n//\tfreopen(\".in\", \"r\", stdin);\n//\tfreopen(\".out\", \"w\", stdout);\n\tcin.tie(0);\n\tstd::ios::sync_with_stdio(0);\n\tcin >> n >> m >> s >> t;\n\tfor(int i = 1; i <= m; i++){\n\t\tint u, v, w;\n\t\tcin >> u >> v >> w;\n\t\tint su = e[u].size(), sv = e[v].size();\n\t\te[u].eb(Node{v, w, sv});\n\t\te[v].eb(Node{u, 0, su});\n\t}\n\tdinic();\n\tcout << ans << \"\\n\";\n\treturn 0;\n}\n```\n::::\n\n### [P2763 试题库问题](https://www.luogu.com.cn/problem/P2763)\n唐。  \n本题 $<<<<<$ 10.5 模拟赛 T2。  \n直接模拟题意连边即可。输出方案就是所有从题目连向类型的流量为 $0$ 的真的边。\n",
+    "pinned": false,
+    "publishedAt": "2026-10-05T15:29:27.951Z",
+    "updatedAt": "2026-10-05T15:29:27.951Z"
+  },
+  {
     "id": "9ad0145c-6738-4ea1-9dfe-dbb3e5e61858",
     "title": "10.4 题解",
     "category": "模拟赛",
