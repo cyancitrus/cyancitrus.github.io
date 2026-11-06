@@ -46,6 +46,28 @@ function encodeBase64(value: string): string {
   return btoa(binary);
 }
 
+/** Upload an attachment as a static Pages asset; each upload gets a unique path. */
+export async function uploadAttachment(file: File, postId: string, token: string): Promise<string> {
+  if (!repoConfigured) throw new Error("尚未绑定 GitHub 仓库，无法上传附件");
+  if (!file.size) throw new Error("不能上传空文件");
+  if (file.size > 10 * 1024 * 1024) throw new Error("单个附件不能超过 10 MB");
+  if (/\.(?:html?|svg|js|mjs|cjs|xml|wasm)$/i.test(file.name)) throw new Error("为保护博客登录状态，不支持上传网页或脚本文件");
+  const name = (file.name.replace(/[\\/\x00-\x1f\x7f<>:"|?*]/g, "-").replace(/^\.+/, "") || "attachment").slice(0, 120);
+  const filename = `${crypto.randomUUID()}-${name}`;
+  const segments = ["public", "attachments", postId, filename];
+  const encodeSegment = (value: string) => encodeURIComponent(value).replace(/[!'()*]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
+  const path = segments.map(encodeSegment).join("/");
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+  await githubFetch(`${apiRoot}/contents/${path}`, token, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: `Add attachment: ${name}`, content: btoa(binary), branch: "main" }),
+  });
+  return asset(["attachments", postId, filename].map(encodeSegment).join("/"));
+}
+
 async function getFile(path: string, token: string): Promise<{ sha: string; content: string }> {
   const file = await githubFetch(`${apiRoot}/contents/${path}?ref=main`, token);
   if (file.type !== "file" || !file.content || !file.sha) throw new Error("无法读取仓库内容");
