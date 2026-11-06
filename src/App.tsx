@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowUpRight, Moon, PenLine, Pin, Plus, Settings2, Sun } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, LockKeyhole, Moon, PenLine, Pin, Plus, Settings2, Sun } from "lucide-react";
 import { Markdown } from "./Markdown";
 import { Editor } from "./Editor";
 import { connectGitHub, loadPublicData, repoConfigured, repoName, repoOwner, saveSettings } from "./github";
 import { readDrafts } from "./drafts";
+import { decryptBody } from "./crypto";
 import type { Post, SiteSettings } from "./types";
 
 const initialSettings: SiteSettings = { heroTitle: "解题，\n也写生活。", heroSubtitle: "把思路写清楚，把日子记下来。" };
@@ -71,18 +72,30 @@ function Home({ posts, settings, initialCategory }: { posts: Post[]; settings: S
     {categories.length > 0 && <div className="category-row" role="group" aria-label="按分类筛选">{["全部", ...categories].map(item => <button key={item} type="button" className={`category-pill ${category === item ? "selected" : ""}`} aria-pressed={category === item} onClick={() => selectCategory(item)}>{item}<span>{item === "全部" ? posts.length : posts.filter(post => post.category === item).length}</span></button>)}</div>}
     {visible.length ? <div className="post-list">{visible.map(post => <a className="post-card" href={`#/post/${encodeURIComponent(post.id)}`} onClick={rememberPosition} key={post.id}>
       <div className="post-meta"><span className="meta-category">{post.category}</span><span className="meta-separator">/</span><time dateTime={post.updatedAt}>{formatDate(post.updatedAt)}</time></div>
-      <div className="post-title-row"><h3>{post.title}</h3><ArrowUpRight size={20} /></div><p>{excerpt(post.body) || "点击阅读文章"}</p>
+      <div className="post-title-row"><h3>{post.title}</h3>{post.secret ? <LockKeyhole size={17} aria-label="密码保护" /> : <ArrowUpRight size={20} />}</div><p>{post.secret ? "输入密码后阅读" : excerpt(post.body) || "点击阅读文章"}</p>
       {post.pinned && <span className="pin-tag"><Pin size={12} />置顶</span>}
     </a>)}</div> : <div className="empty-state"><div className="empty-symbol">✳</div><h3>{posts.length ? "这一类还没有文章" : "从第一篇开始"}</h3><p>{posts.length ? "试试其他分类。" : "留一篇题解，或者记下今天。"}</p>{!posts.length && <a href="#/editor" className="empty-create"><Plus size={16} />写第一篇</a>}</div>}
   </section></main>;
 }
 
 function Article({ post, connected }: { post?: Post; connected: boolean }) {
+  const [password, setPassword] = useState("");
+  const [decrypted, setDecrypted] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   if (!post) return <main className="site-shell error-panel"><h1>文章不存在</h1><a href="#/" className="back-link">返回首页</a></main>;
+  async function unlock(event: React.FormEvent) {
+    event.preventDefault();
+    if (!post?.secret) return;
+    setBusy(true); setError("");
+    try { setDecrypted(await decryptBody(post.secret, password)); setPassword(""); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "解锁失败"); }
+    finally { setBusy(false); }
+  }
   return <main className="site-shell article-shell"><nav className="breadcrumbs" aria-label="当前位置"><ol><li><a href="#/">主页</a></li><li><a href={`#/category/${encodeURIComponent(post.category)}`}>{post.category}</a></li><li aria-current="page" title={post.title}>{post.title}</li></ol></nav>
     <article><header className="article-head">{post.pinned ? <div className="article-topline"><Pin size={13} aria-hidden="true" />置顶</div> : null}<h1>{post.title}</h1>
       <div className="article-meta"><time dateTime={post.updatedAt}>{formatDate(post.updatedAt)}</time>{connected && <a href={`#/editor/${encodeURIComponent(post.id)}`}>编辑</a>}</div></header>
-      <Markdown content={post.body} /></article>
+      {post.secret && decrypted === null ? <form className="article-lock" onSubmit={event => void unlock(event)}><LockKeyhole size={25} aria-hidden="true" /><h2>这篇文章需要密码</h2><label className="editor-label">文章密码<input type="password" autoComplete="off" value={password} onChange={event => setPassword(event.target.value)} required autoFocus /></label><button type="submit" className="action-button primary" disabled={busy}>{busy ? "验证中…" : "解锁文章"}</button>{error && <p className="editor-error" role="alert">{error}</p>}</form> : <Markdown content={decrypted ?? post.body} />}</article>
   </main>;
 }
 
@@ -178,5 +191,5 @@ export function App() {
     setToken(""); setLogin("");
     location.hash = "#/";
   }
-  return <><Header />{loading || ((route.name === "editor" || route.name === "manage") && authChecking) ? <main className="site-shell error-panel"><p>{loading ? "正在读取文章…" : "正在连接 GitHub…"}</p></main> : loadError ? <main className="site-shell error-panel"><h1>暂时无法读取博客</h1><p>{loadError}</p><button className="action-button" onClick={() => location.reload()}>重试</button></main> : route.name === "post" ? <Article post={posts.find(post => post.id === route.id)} connected={Boolean(token)} /> : route.name === "editor" || route.name === "manage" ? !token ? <Connect onConnect={connect} /> : route.name === "manage" ? <Manage posts={posts} settings={settings} token={token} login={login} onSettings={setSettings} onDisconnect={disconnect} /> : <Editor key={route.id || "new"} id={route.id} posts={posts} token={token} onPosts={setPosts} /> : <Home key={route.name === "category" ? route.id : "home"} posts={posts} settings={settings} initialCategory={route.name === "category" ? route.id : "全部"} />}</>;
+  return <><Header />{loading || ((route.name === "editor" || route.name === "manage") && authChecking) ? <main className="site-shell error-panel"><p>{loading ? "正在读取文章…" : "正在连接 GitHub…"}</p></main> : loadError ? <main className="site-shell error-panel"><h1>暂时无法读取博客</h1><p>{loadError}</p><button className="action-button" onClick={() => location.reload()}>重试</button></main> : route.name === "post" ? <Article key={route.id} post={posts.find(post => post.id === route.id)} connected={Boolean(token)} /> : route.name === "editor" || route.name === "manage" ? !token ? <Connect onConnect={connect} /> : route.name === "manage" ? <Manage posts={posts} settings={settings} token={token} login={login} onSettings={setSettings} onDisconnect={disconnect} /> : <Editor key={route.id || "new"} id={route.id} posts={posts} token={token} onPosts={setPosts} /> : <Home key={route.name === "category" ? route.id : "home"} posts={posts} settings={settings} initialCategory={route.name === "category" ? route.id : "全部"} />}</>;
 }

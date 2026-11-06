@@ -1,13 +1,14 @@
 import { memo, startTransition, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Check, Save, Send, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, LockKeyhole, Save, Send, Trash2 } from "lucide-react";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, undo, redo, undoDepth, redoDepth } from "@codemirror/commands";
 import { Markdown } from "./Markdown";
 import { EditorToolbar } from "./EditorTools";
 import type { EditorView as EditorLayoutView } from "./EditorTools";
-import { deletePost, publishPost } from "./github";
+import { deletePost, publishPost, uploadAttachment } from "./github";
 import { readDrafts, removeDraft, saveDraft } from "./drafts";
+import { decryptBody, encryptBody } from "./crypto";
 import type { Post } from "./types";
 
 const MemoMarkdown = memo(Markdown);
@@ -45,26 +46,57 @@ const MarkdownPreview = memo(function MarkdownPreview({ content }: { content: st
   const sections = useMemo(() => splitPreviewSections(content), [content]);
   return <div className="markdown-body">{sections.map((section, index) => <MemoMarkdown key={index} content={section} bare />)}</div>;
 });
-export function Editor({ id, posts, token, onPosts, previewOnly = false }: { id: string; posts: Post[]; token: string; onPosts: (posts: Post[]) => void; previewOnly?: boolean }) {
+type EditorProps = { id: string; posts: Post[]; token: string; onPosts: (posts: Post[]) => void; previewOnly?: boolean };
+
+export function Editor(props: EditorProps) {
+  const published = props.posts.find(post => post.id === props.id);
+  const draft = readDrafts().find(item => item.id === props.id);
+  const source = draft || published;
+  const secret = source?.secret || published?.secret;
+  const [password, setPassword] = useState("");
+  const [unlocked, setUnlocked] = useState<{ body: string; password: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  async function unlock(event: React.FormEvent) {
+    event.preventDefault();
+    if (!secret) return;
+    setBusy(true); setError("");
+    try {
+      const body = await decryptBody(secret, password);
+      setUnlocked({ body: source?.secret ? body : source?.body || body, password });
+      setPassword("");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "密码不正确"); }
+    finally { setBusy(false); }
+  }
+  if (secret && !unlocked) return <main className="site-shell editor-shell"><a className="back-link" href="#/">返回博客</a><form className="article-lock editor-unlock" onSubmit={event => void unlock(event)}><LockKeyhole size={25} /><h1>输入文章密码后编辑</h1><label className="editor-label">文章密码<input type="password" autoComplete="off" value={password} onChange={event => setPassword(event.target.value)} required autoFocus /></label><button className="action-button primary" disabled={busy}>{busy ? "验证中…" : "解锁编辑器"}</button>{error && <p className="editor-error" role="alert">{error}</p>}</form></main>;
+  return <EditorContent {...props} initialBody={unlocked?.body} initialPassword={unlocked?.password} />;
+}
+
+function EditorContent({ id, posts, token, onPosts, previewOnly = false, initialBody, initialPassword = "" }: EditorProps & { initialBody?: string; initialPassword?: string }) {
   const published = posts.find(post => post.id === id);
   const draft = useMemo(() => readDrafts().find(item => item.id === id), [id]);
   const source = draft || published;
   const [postId] = useState(id || crypto.randomUUID());
   const [title, setTitle] = useState(source?.title || "");
-  const [body, setBody] = useState(source?.body || "");
-  const [previewBody, setPreviewBody] = useState(source?.body || "");
-  const bodyRef = useRef(source?.body || "");
+  const [body, setBody] = useState(initialBody ?? source?.body ?? "");
+  const [previewBody, setPreviewBody] = useState(initialBody ?? source?.body ?? "");
+  const bodyRef = useRef(initialBody ?? source?.body ?? "");
   const editorMount = useRef<HTMLDivElement>(null);
   const editorView = useRef<EditorView | null>(null);
   const idleTimer = useRef<number | undefined>(undefined);
   const updateActions = useRef<{ commit: () => void; insert: (before: string, after?: string, placeholder?: string) => void; save: () => void }>({ commit: () => {}, insert: () => {}, save: () => {} });
   const heldDeletion = useRef(false);
   const autoSaveTimer = useRef<number | undefined>(undefined);
+  const draftEpoch = useRef(0);
   const [historyState, setHistoryState] = useState({ undo: false, redo: false });
   const historyAvailability = useRef({ undo: false, redo: false });
   const [category, setCategory] = useState(source?.category || "");
   const [pinned, setPinned] = useState(Boolean(source?.pinned));
+  const [locked, setLocked] = useState(Boolean(source?.secret || published?.secret));
+  const [lockPassword, setLockPassword] = useState(initialPassword);
+  const [confirmPassword, setConfirmPassword] = useState(initialPassword);
   const [busy, setBusy] = useState(false);
+  const [attaching, setAttaching] = useState(false);
   const [message, setMessage] = useState("");
   const [autoSaved, setAutoSaved] = useState("");
   const [dirty, setDirty] = useState(false);
@@ -84,6 +116,7 @@ export function Editor({ id, posts, token, onPosts, previewOnly = false }: { id:
     return () => { document.body.style.overflow = previousOverflow; document.removeEventListener("keydown", exitOnEscape); };
   }, [fullscreen]);
   const fileInput = useRef<HTMLInputElement>(null);
+  const attachmentInput = useRef<HTMLInputElement>(null);
   const panels = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   const categories = useMemo(() => [...new Set(posts.map(post => post.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, "zh-CN")), [posts]);
@@ -194,6 +227,38 @@ export function Editor({ id, posts, token, onPosts, previewOnly = false }: { id:
     view.focus();
   }
 
+  function insertAttachment(file: File, url: string) {
+    const view = editorView.current;
+    if (!view) return;
+    const label = file.name.replace(/([\\[\]])/g, "\\$1").replace(/[\r\n]/g, " ");
+    const image = /\.(?:png|jpe?g|gif|webp|avif)$/i.test(file.name);
+    const link = `${image ? "!" : ""}[${label}](${url})`;
+    const from = view.state.selection.main.from;
+    view.dispatch({ changes: { from, insert: link }, selection: { anchor: from + link.length }, scrollIntoView: true });
+    commitEditor();
+  }
+
+  async function addAttachments(event: React.ChangeEvent<HTMLInputElement>) {
+    if (locked) { event.target.value = ""; setError("上锁文章暂不支持公开附件；附件会直接暴露在公开仓库中"); return; }
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!files.length || attaching) return;
+    const invalid = files.find(file => !file.size || file.size > 10 * 1024 * 1024);
+    if (invalid) { setError(`${invalid.name}：附件需要大于 0 且不超过 10 MB`); return; }
+    setAttaching(true); setError(""); setMessage("");
+    try {
+      for (let i = 0; i < files.length; i++) {
+        setMessage(`正在上传附件 ${i + 1}/${files.length}…`);
+        const url = await uploadAttachment(files[i], postId, token);
+        insertAttachment(files[i], url);
+      }
+      setMessage(`已添加 ${files.length} 个附件；发布文章后读者可访问`);
+    } catch (reason) {
+      setMessage("");
+      setError(reason instanceof Error ? reason.message : "附件上传失败，请重试");
+    } finally { setAttaching(false); }
+  }
+
   function moveDivider(x: number) {
     const rect = panels.current?.getBoundingClientRect();
     if (rect) setSplit(Math.max(18, Math.min(82, Math.round((x - rect.left) / rect.width * 100))));
@@ -211,37 +276,53 @@ export function Editor({ id, posts, token, onPosts, previewOnly = false }: { id:
     };
   }
 
+  async function makeStoredPost(): Promise<Post> {
+    const post = makePost();
+    if (!locked) return post;
+    if (lockPassword !== confirmPassword) throw new Error("两次输入的文章密码不一致");
+    return { ...post, body: "", secret: await encryptBody(post.body, lockPassword) };
+  }
+
   useEffect(() => {
     if (!dirty || (!title.trim() && !body.trim())) return;
-    autoSaveTimer.current = window.setTimeout(() => {
+    let cancelled = false;
+    const epoch = ++draftEpoch.current;
+    autoSaveTimer.current = window.setTimeout(async () => {
       try {
-        saveDraft({ ...makePost(), draft: true });
+        const post = await makeStoredPost();
+        if (cancelled || epoch !== draftEpoch.current) return;
+        saveDraft({ ...post, draft: true });
         if (!id) window.history.replaceState(null, "", `#/editor/${encodeURIComponent(postId)}`);
         setAutoSaved(`已自动保存到本机 (${new Date().toLocaleTimeString("zh-CN", { hour12: false })})`);
         setDirty(false);
-      } catch { setAutoSaved("本机自动保存失败"); }
+      } catch { if (!cancelled) setAutoSaved("请设置有效密码后保存草稿"); }
     }, 1500);
-    return () => window.clearTimeout(autoSaveTimer.current);
-  }, [title, body, category, pinned, dirty, postId]);
+    return () => { cancelled = true; window.clearTimeout(autoSaveTimer.current); };
+  }, [title, body, category, pinned, locked, lockPassword, confirmPassword, dirty, postId]);
 
-  function saveLocal() {
+  async function saveLocal() {
     commitEditor();
     if (!title.trim()) { setError("请先填写标题"); return; }
-    saveDraft({ ...makePost(), draft: true });
-    setError(""); setMessage("草稿已保存到当前设备"); setDirty(false);
-    if (!id) location.hash = `#/editor/${encodeURIComponent(postId)}`;
+    try {
+      saveDraft({ ...await makeStoredPost(), draft: true });
+      setError(""); setMessage("草稿已保存到当前设备"); setDirty(false);
+      if (!id) location.hash = `#/editor/${encodeURIComponent(postId)}`;
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "保存失败"); }
   }
 
   async function publish() {
+    if (attaching) return;
     commitEditor();
     if (!title.trim()) { setError("请先填写标题"); return; }
     if (!category.trim() || category.trim().length > 40) { setError("请输入 1–40 字的分类"); return; }
     const current = currentBody();
     if (!current.trim()) { setError("发布前请填写正文"); return; }
     if (current.length > 500000) { setError("正文不能超过 500 KB"); return; }
+    draftEpoch.current++;
+    window.clearTimeout(autoSaveTimer.current);
     setBusy(true); setError(""); setMessage("");
     try {
-      const next = await publishPost(makePost(), token);
+      const next = await publishPost(await makeStoredPost(), token);
       onPosts(next);
       removeDraft(postId);
       setDirty(false); setAutoSaved("");
@@ -283,14 +364,18 @@ export function Editor({ id, posts, token, onPosts, previewOnly = false }: { id:
     {!previewOnly && <a href={published ? `#/post/${encodeURIComponent(postId)}` : "#/"} className="back-link"><ArrowLeft size={16} />返回博客</a>}
     <div className="editor-head"><div><span className="section-kicker">WRITE / {source ? "EDIT" : "NEW"}</span><h1>{source ? "编辑" : "写新文章"}</h1></div>
       <div className="editor-actions"><span className="editor-save-state" aria-live="polite">{message && <><Check size={14} /> {message}</>}</span>
-        <button className="action-button" type="button" disabled={busy} onClick={saveLocal}><Save size={16} />保存本机草稿</button>
-        {!previewOnly && <button className="action-button primary" type="button" disabled={busy} onClick={() => void publish()}><Send size={16} />{busy ? "发布中…" : published ? "更新发布" : "发布文章"}</button>}</div></div>
+        <button className="action-button" type="button" disabled={busy || attaching} onClick={() => void saveLocal()}><Save size={16} />保存本机草稿</button>
+        {!previewOnly && <button className="action-button primary" type="button" disabled={busy || attaching} onClick={() => void publish()}><Send size={16} />{busy ? "发布中…" : published ? "更新发布" : "发布文章"}</button>}</div></div>
     <div className="editor-settings"><label className="editor-label editor-title">标题<input value={title} onChange={event => { setTitle(event.target.value); setMessage(""); setAutoSaved(""); setDirty(true); }} placeholder="给文章起个标题" maxLength={180} /></label>
       <label className="editor-label editor-category">分类<input list="blog-categories" value={category} onChange={event => { setCategory(event.target.value); setMessage(""); setAutoSaved(""); setDirty(true); }} placeholder="输入或选择分类" maxLength={40} /><datalist id="blog-categories">{categories.map(item => <option value={item} key={item} />)}</datalist></label>
-      <label className="pin-control"><input type="checkbox" checked={pinned} onChange={event => { setPinned(event.target.checked); setAutoSaved(""); setDirty(true); }} />置顶文章</label></div>
+      <label className="pin-control"><input type="checkbox" checked={pinned} onChange={event => { setPinned(event.target.checked); setAutoSaved(""); setDirty(true); }} />置顶文章</label>
+      <label className="pin-control"><input type="checkbox" checked={locked} onChange={event => { setLocked(event.target.checked); setError(""); setDirty(true); }} />密码保护</label>
+      {locked && <div className="lock-fields"><label className="editor-label">文章密码<input type="password" autoComplete="new-password" value={lockPassword} onChange={event => { setLockPassword(event.target.value); setDirty(true); }} placeholder="至少 8 个字符" /></label><label className="editor-label">确认密码<input type="password" autoComplete="new-password" value={confirmPassword} onChange={event => { setConfirmPassword(event.target.value); setDirty(true); }} placeholder="再次输入" /></label></div>}</div>
+    {locked && <p className="lock-note">正文会在发布前加密。密码遗失后无法恢复；已上传的附件和外部链接仍可单独访问。</p>}
     <div className={`editor-workspace${fullscreen ? " is-fullscreen" : ""}`}>
-      <EditorToolbar insert={insert} undo={() => { const v = editorView.current; if (v) undo(v); }} redo={() => { const v = editorView.current; if (v) redo(v); }} canUndo={historyState.undo} canRedo={historyState.redo} onImport={() => fileInput.current?.click()} onExport={exportMarkdown} view={view} onView={next => { if (next === "preview") commitEditor(); setView(next); }} fullscreen={fullscreen} onFullscreen={() => setFullscreen(value => !value)} />
+      <EditorToolbar insert={insert} undo={() => { const v = editorView.current; if (v) undo(v); }} redo={() => { const v = editorView.current; if (v) redo(v); }} canUndo={historyState.undo} canRedo={historyState.redo} onImport={() => fileInput.current?.click()} onExport={exportMarkdown} onAttach={() => attachmentInput.current?.click()} attaching={attaching} attachmentEnabled={!previewOnly && !busy && !locked} attachmentHint={locked ? "密码保护的文章不支持上传公开附件" : previewOnly ? "预览模式不能上传附件" : "正在发布，请稍后添加附件"} view={view} onView={next => { if (next === "preview") commitEditor(); setView(next); }} fullscreen={fullscreen} onFullscreen={() => setFullscreen(value => !value)} />
       <input ref={fileInput} type="file" accept=".md,.markdown,text/markdown,text/plain" className="hidden" onChange={event => void importMarkdown(event)} aria-label="导入 Markdown 文件" />
+      <input ref={attachmentInput} type="file" multiple className="hidden" onChange={event => void addAttachments(event)} aria-label="选择附件" />
       <div className="mobile-tabbar" role="group" aria-label="编辑区视图"><button type="button" className={view !== "preview" ? "active" : ""} onClick={() => setView("source")}>编辑</button><button type="button" className={view === "preview" ? "active" : ""} onClick={() => { commitEditor(); setView("preview"); }}>预览</button></div>
       <div className={`editor-panels mode-${view}`} ref={panels} style={{ "--split": `${split}%` } as React.CSSProperties}>
         <div className="editor-source"><div className="panel-label">MARKDOWN 源代码 <span>支持洛谷扩展语法与 KaTeX</span></div><div className="editor-cm" ref={editorMount} aria-label="Markdown 正文" /></div>

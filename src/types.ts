@@ -3,6 +3,7 @@ export type Post = {
   title: string;
   category: string;
   body: string;
+  secret?: { version: 1; salt: string; iv: string; data: string };
   pinned: boolean;
   publishedAt: string;
   updatedAt: string;

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AlignLeft, Bold, Box, ChevronDown, Code2, Download, FileCode2, FileInput, Heading, Image, Italic, Link2, List, ListChecks, ListOrdered, Maximize2, Minimize2, Minus, PanelLeft, PanelRight, Quote, Redo2, Strikethrough, Table2, Undo2, Columns2 } from "lucide-react";
+import { AlignLeft, Bold, Box, ChevronDown, Code2, Download, FileCode2, FileInput, Heading, Image, Italic, Link2, List, ListChecks, ListOrdered, Maximize2, Minimize2, Minus, PanelLeft, PanelRight, Paperclip, Quote, Redo2, Strikethrough, Table2, Undo2, Columns2 } from "lucide-react";
 
 export type EditorView = "split" | "source" | "preview";
 
@@ -85,12 +85,12 @@ export function useMarkdownHistory(initialBody: string, applyBody: (next: string
 type ToolbarProps = {
   insert: (before: string, after?: string, placeholder?: string) => void;
   undo: () => void; redo: () => void; canUndo: boolean; canRedo: boolean;
-  onImport: () => void; onExport: () => void;
+  onImport: () => void; onExport: () => void; onAttach: () => void; attaching: boolean; attachmentEnabled: boolean; attachmentHint?: string;
   view: EditorView; onView: (view: EditorView) => void;
   fullscreen: boolean; onFullscreen: () => void;
 };
 
-export function EditorToolbar({ insert, undo, redo, canUndo, canRedo, onImport, onExport, view, onView, fullscreen, onFullscreen }: ToolbarProps) {
+export function EditorToolbar({ insert, undo, redo, canUndo, canRedo, onImport, onExport, onAttach, attaching, attachmentEnabled, attachmentHint, view, onView, fullscreen, onFullscreen }: ToolbarProps) {
   const button = (name: string, icon: React.ReactNode, action: () => void, extra?: { disabled?: boolean; pressed?: boolean }) =>
     <button type="button" className="tool-button icon-tool" key={name} title={name} aria-label={name} aria-pressed={extra?.pressed} disabled={extra?.disabled} onClick={action}>{icon}</button>;
   return <div className="editor-toolbar" aria-label="Markdown 工具栏">
@@ -110,7 +110,7 @@ export function EditorToolbar({ insert, undo, redo, canUndo, canRedo, onImport, 
       { label: "居中对齐", action: () => insert("\n:::align{center}\n", "\n:::\n", "文字内容") },
       { label: "右对齐", action: () => insert("\n:::align{right}\n", "\n:::\n", "文字内容") },
     ]} /></span>
-    <span className="tool-group">{button("链接", <Link2 size={17} />, () => insert("[", "](https://example.com)", "链接文字"))}{button("图片", <Image size={17} />, () => insert("![", "](https://example.com/image.png)", "图片描述"))}</span>
+    <span className="tool-group">{button("链接", <Link2 size={17} />, () => insert("[", "](https://example.com)", "链接文字"))}{button("图片", <Image size={17} />, () => insert("![", "](https://example.com/image.png)", "图片描述"))}{button(attaching ? "附件上传中…" : attachmentEnabled ? "添加附件（图片会直接显示）" : attachmentHint || "暂不可上传附件", <Paperclip size={17} />, onAttach, { disabled: attaching || !attachmentEnabled })}</span>
     <span className="tool-group">{button("无序列表", <List size={17} />, () => insert("\n- ", "\n", "列表项"))}{button("有序列表", <ListOrdered size={17} />, () => insert("\n1. ", "\n", "列表项"))}{button("任务列表", <ListChecks size={17} />, () => insert("\n- [ ] ", "\n", "待办事项"))}{button("分隔线", <Minus size={17} />, () => insert("\n\n---\n\n", "", ""))}</span>
     <span className="tool-group">{button("导入 Markdown 文件", <FileInput size={17} />, onImport)}{button("下载 Markdown 文件", <Download size={17} />, onExport)}</span>
     <span className="tool-group tool-layout">{button("双栏", <Columns2 size={17} />, () => onView("split"), { pressed: view === "split" })}{button("只看 Markdown", <PanelLeft size={17} />, () => onView("source"), { pressed: view === "source" })}{button("只看预览", <PanelRight size={17} />, () => onView("preview"), { pressed: view === "preview" })}</span>
