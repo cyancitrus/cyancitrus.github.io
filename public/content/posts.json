@@ -54,10 +54,16 @@
     "id": "4e727e26-2cd7-43d6-9643-4c8ba6fee934",
     "title": "OC 设定",
     "category": "OC",
-    "body": "### 黄时雨\n- 小名梅梅\n- 出场时 14 岁\n- 女\n- 性格：温和、感性、早熟，带着初入青春期的稚气和活泼。内心深处是多愁善感的。\n- 爱好：听歌、画画、写作，是文学社社员。会轻度玩一些清新向的日乙和文游，追番。星露谷农民。\n- 补充：学习不错但不是尖子，因为觉得学校教的东西没意思且自己不感兴趣，遂摆烂，会被老师说有灵气但是不努力。耳机是精神的充电器，手机备忘录里有很多不知道什么时候写的琐记，喜欢画画，尤其喜欢水墨风。听的中术是青春伤痛那一挂的，最喜欢诗岸，认为青春不听点青春伤痛的东西，不谈一场朦胧的恋爱不就白青春一场了。\n- 印象句：若问闲情都几许，一川烟草，满城风絮，梅子黄时雨。\n\n### 梁青岚\n- 出场时 15 岁\n- 男\n- 性格：理性、开朗、幽默、乐观，常常是为大家兜底和活跃气氛的人，但有时会忽略自己的情绪和感受。\n- 爱好：听歌、打音游、打电脑游戏，是 OIer，在学校信竞队里。\n- 补充：学习很好，即使是在假期里也会有各种补习班和 OI 集训。喜欢术力口，学习了编曲作曲，但是一直写不好词，和朋友合作过两首。喜欢捣鼓电脑，小时候淘气把学校机房的极域爆破了，用教师权限和朋友聊天，长大了信竞教室的电脑坏了都是 TA 修。谦虚但是本质非常要强，精力很旺盛会为了好成绩而学到很晚，当然因为白天缺乏娱乐活动所以会更晚睡觉。\n- 印象句：惟江上之清风，与山间之明月。",
+    "body": "",
     "pinned": false,
     "publishedAt": "2026-10-05T17:42:41.014Z",
-    "updatedAt": "2026-10-06T17:23:56.182Z"
+    "updatedAt": "2026-11-07T02:02:56.283Z",
+    "secret": {
+      "version": 1,
+      "salt": "WyV8M+acMQ/941mxhyPRpw==",
+      "iv": "+hnL33qzGmUHGi4r",
+      "data": "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"
+    }
   },
   {
     "id": "fb1e7d3c-61e9-4219-897c-0a559f99dc7d",
