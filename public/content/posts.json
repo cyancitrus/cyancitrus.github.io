@@ -1,5 +1,14 @@
 [
   {
+    "id": "c4da5bf1-9541-4e96-ab20-c2bba0e51eee",
+    "title": "单词",
+    "category": "其他",
+    "body": "### 11.9\n\nearn vt. 挣得，博得  \ntrack vt. 追踪  \nhandle n. 柄 vt. 处理，操纵  \nflight n. 航班，飞行，一段楼梯  \nremain v. 依然，留下，尚待（处理） n.(-s) 遗体，遗迹  \n$\\phi$ concern n. 关心，担心 vt. 涉及，担忧  \nprevent vt. 阻止  \nappoint vt. 指定，任命，委派  \npromise n. **迹象**  \namount n. 数量，**（感情、特质的）程度** vi.(to) 合计，等于  \nswitch n. 开关，转变 v. 转变  \nhire v. 雇用 n./vt. 租用  \npromote vt. 促进，提升，倡议  \ndemand vt./n. 要求，需要  \nreward n. 报酬 v. 酬谢  \nselect v. 选择 adj. 精选的   \nvarious adj. 各种各样的  ",
+    "pinned": false,
+    "publishedAt": "2026-11-10T14:44:48.179Z",
+    "updatedAt": "2026-11-10T14:44:48.179Z"
+  },
+  {
     "id": "eb042afd-2bae-4af8-a02d-092ea2a4ae32",
     "title": "Singer RT",
     "category": "题解",
